@@ -131,6 +131,7 @@ textarea.input-field{resize:none}
 <script>
 const WORKER_URL = "https://sparkling-recipe-1606.kultforge.workers.dev/";
 let isRunning = false;
+let pipelineResult = null;
 
 document.querySelectorAll(".product-toggle").forEach(btn => {
   btn.addEventListener("click", () => btn.classList.toggle("active"));
@@ -288,7 +289,23 @@ async function runPipeline() {
     setStep(3, "done");
     setProgress(100);
 
-    document.getElementById("topStatus").textContent = "Done — copy each output and go";
+    // Store all results for download
+    pipelineResult = { trend, source, context, product, price, r1, r2, r3, r4, date: new Date().toISOString() };
+
+    // Add download block
+    const area = document.getElementById("outputArea");
+    const dlBlock = document.createElement("div");
+    dlBlock.className = "block";
+    dlBlock.style.borderColor = "var(--orange)";
+    dlBlock.innerHTML = '<div class="block-header"><div class="block-title">Pipeline complete <span class="block-badge bb-orange">Ready for video pipeline</span></div></div>' +
+      '<div style="padding:16px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">' +
+      '<div style="font-size:13px;color:var(--muted);line-height:1.6;flex:1;min-width:200px">Download the full pipeline file. Upload it to the <strong style=\"color:var(--text)\">Video Pipeline</strong> tool together with your Ideogram design to create TikTok and Instagram content.</div>' +
+      '<button onclick="downloadPipeline()" style="background:var(--orange);color:#fff;border:none;padding:12px 24px;border-radius:8px;font-family:\'Barlow Condensed\',sans-serif;font-size:16px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;cursor:pointer;white-space:nowrap;flex-shrink:0">Download pipeline file</button>' +
+      '</div>';
+    area.appendChild(dlBlock);
+    dlBlock.scrollIntoView({ behavior: "smooth", block: "end" });
+
+    document.getElementById("topStatus").textContent = "Done — download the pipeline file to continue";
     btn.disabled = false;
     btn.textContent = "Run again";
     isRunning = false;
@@ -300,6 +317,68 @@ async function runPipeline() {
     btn.textContent = "Try again";
     isRunning = false;
   }
+}
+
+function downloadPipeline() {
+  if (!pipelineResult) return;
+  const { trend, source, context, product, price, r1, r2, r3, r4, date } = pipelineResult;
+
+  const lines = r1.split("\n");
+  const getField = (key) => { const l = lines.find(l => l.toUpperCase().startsWith(key.toUpperCase())); return l ? l.split(":").slice(1).join(":").trim() : ""; };
+
+  const txt = [
+    "================================================================",
+    "KULTFORGE PIPELINE FILE",
+    "================================================================",
+    "Generated: " + new Date(date).toLocaleString("nl-NL"),
+    "Trend: " + trend,
+    "Source: " + (source || "—"),
+    "Context: " + (context || "—"),
+    "",
+    "================================================================",
+    "STEP 1 — PRODUCT DECISION",
+    "================================================================",
+    "Product:      " + (getField("PRODUCT") || product),
+    "Sell price:   " + (getField("PRICE") || price),
+    "Act window:   " + (getField("WINDOW") || "—"),
+    "IP risk:      " + (getField("RISK") || "—"),
+    "Reason:       " + (getField("REASON") || "—"),
+    "",
+    "================================================================",
+    "STEP 2 — IDEOGRAM PROMPT",
+    "================================================================",
+    "(Paste this directly into ideogram.ai — Style: Design)",
+    "",
+    r2.trim(),
+    "",
+    "================================================================",
+    "STEP 3 — ETSY LISTING",
+    "================================================================",
+    r3.trim(),
+    "",
+    "================================================================",
+    "STEP 4 — SOCIAL CAPTIONS",
+    "================================================================",
+    r4.trim(),
+    "",
+    "================================================================",
+    "NEXT STEP — VIDEO PIPELINE",
+    "================================================================",
+    "1. Open the Kultforge Video Pipeline tool",
+    "2. Upload this file",
+    "3. Upload your Ideogram design image",
+    "4. Generate TikTok and Instagram video content",
+    "================================================================",
+  ].join("\n");
+
+  const blob = new Blob([txt], { type: "text/plain" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const safeName = trend.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 40);
+  a.href = url;
+  a.download = "kultforge-pipeline-" + safeName + ".txt";
+  a.click();
+  URL.revokeObjectURL(url);
 }
 </script>
 </body>
